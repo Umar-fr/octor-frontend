@@ -7,6 +7,12 @@
   font-family: system-ui, sans-serif;
   background-color: black;
 }
+.search-page h3 {
+  color: white;
+  justify-content: center;
+  font-size: larger;
+  
+}
 
 /* Blurred background */
 .bg-image {

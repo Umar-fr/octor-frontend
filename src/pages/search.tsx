@@ -20,6 +20,7 @@ const SearchScreen = () => {
 
         {/* Center Content */}
         <div className="center-content">
+          <h3>Paste your link below to search for related content:</h3>
           <input
             type="text"
             placeholder="Paste your link here..."
