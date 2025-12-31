@@ -50,6 +50,40 @@ const Dashboard = () => {
     setRepositories(data);
   };
 
+  const deleteRepository = async (repoId: number) => {
+  const confirmed = window.confirm(
+    "Are you sure? This will permanently delete the repository and all related issues & solutions."
+  );
+
+  if (!confirmed) return;
+
+  const res = await fetch(
+    `http://localhost:8000/repositories/${repoId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${(user as any)?.token}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    alert("Failed to delete repository");
+    return;
+  }
+
+  // Reset UI state
+  if (selectedRepo?.id === repoId) {
+    setSelectedRepo(null);
+    setIssues([]);
+    setSelectedIssue(null);
+    setSolution("");
+  }
+
+  fetchRepositories();
+};
+
+
   const fetchIssues = async (repoId: number, filter: string | null = null) => {
     let url = `http://localhost:8000/issues?repo_id=${repoId}`;
     if (filter) url += `&difficulty=${filter}`;
@@ -134,16 +168,29 @@ const Dashboard = () => {
           <h3 style={{ marginTop: 20 }}>Your Repositories</h3>
 
           {repositories.map((repo) => (
-            <button
+            <div
               key={repo.id}
-              className={`repo-btn ${
+              className={`repo-item ${
                 selectedRepo?.id === repo.id ? "active" : ""
               }`}
-              onClick={() => handleRepoClick(repo)}
             >
-              {repo.name}
-            </button>
+              <button
+                className="repo-btn"
+                onClick={() => handleRepoClick(repo)}
+              >
+                {repo.name}
+              </button>
+
+              <button
+                className="delete-repo-btn"
+                onClick={() => deleteRepository(repo.id)}
+                title="Delete repository"
+              >
+                🗑
+              </button>
+            </div>
           ))}
+
         </div>
 
         {/* MIDDLE PANEL */}
