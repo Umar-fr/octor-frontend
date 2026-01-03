@@ -5,9 +5,12 @@ import { authFetch } from "../api";
 import "../components/dashboard.css";
 
 type Repo = {
+  issues_classified: number;
   id: number;
   name: string;
   status: string;
+  analysis_stage?: string;
+  issues_ingested?: number;
 };
 
 type Issue = {
@@ -46,6 +49,9 @@ const Dashboard = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // 🔹 WebSocket ref
+  const wsRef = useRef<WebSocket | null>(null);
+
   // 🔒 Redirect if not authenticated
   useEffect(() => {
     if (!user) navigate("/");
@@ -62,29 +68,10 @@ const Dashboard = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // 🔁 Load repos on mount
-  // 🔁 Load repos on mount
+  // 🔁 Load repositories ONCE (no polling)
   useEffect(() => {
     fetchRepositories();
   }, []);
-
-  // 🔄 Auto-refresh repo status while analyzing
-  useEffect(() => {
-    if (repositories.length === 0) return;
-
-    const hasAnalyzing = repositories.some(
-      (r) => r.status === "queued" || r.status === "analyzing"
-    );
-
-    if (!hasAnalyzing) return;
-
-    const interval = setInterval(() => {
-      fetchRepositories();
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [repositories]);
-
 
   const fetchRepositories = async () => {
     try {
@@ -147,11 +134,53 @@ const Dashboard = () => {
     }
   };
 
+  // 🔌 WebSocket connection (NO polling fallback)
+  const connectWS = (repoId: number) => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    try {
+      const ws = new WebSocket(`ws://localhost:8000/ws/progress/${repoId}`);
+      wsRef.current = ws;
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+
+        setRepositories((prev) =>
+          prev.map((r) =>
+            r.id === repoId
+              ? {
+                  ...r,
+                  issues_ingested:
+                    data.issues_ingested ?? r.issues_ingested,
+                  issues_classified:
+                    data.issues_classified ?? r.issues_classified,
+                  
+                }
+              : r
+          )
+        );
+
+        // 🔥 reflect ingested issues immediately
+        fetchIssues(repoId, difficultyFilter);
+      };
+
+      ws.onerror = () => {
+        console.warn("WebSocket error");
+      };
+    } catch {
+      console.warn("WebSocket connection failed");
+    }
+  };
+
   const handleRepoClick = (repo: Repo) => {
     setSelectedRepo(repo);
     setSelectedIssue(null);
     setSolutionSteps([]);
     fetchIssues(repo.id, difficultyFilter);
+    connectWS(repo.id);
   };
 
   const handleIssueClick = async (issue: Issue) => {
@@ -180,8 +209,8 @@ const Dashboard = () => {
         body: JSON.stringify({
           issue_id: selectedIssue.id,
           step_number: stepNumber,
-          error
-        })
+          error,
+        }),
       });
 
       const res = await authFetch(
@@ -234,9 +263,7 @@ const Dashboard = () => {
                 Profile
               </button>
 
-              <button onClick={switchAccount}>
-                Switch Account
-              </button>
+              <button onClick={switchAccount}>Switch Account</button>
 
               <button className="danger" onClick={logout}>
                 Sign Out
@@ -267,16 +294,25 @@ const Dashboard = () => {
           {repositories.map((repo) => (
             <div key={repo.id} className="repo-item">
               <button
-                className={`repo-btn ${repo.status}`}
-                onClick={() => repo.status === "ready" && handleRepoClick(repo)}
-                disabled={repo.status !== "ready"}
+                className="repo-btn"
+                onClick={() => handleRepoClick(repo)}
               >
-                <span>{repo.name}</span>
-                <span className={`repo-status ${repo.status}`}>
-                  {repo.status}
-                </span>
-              </button>
+                <div className="repo-name">{repo.name}</div>
 
+                <div className="repo-meta">
+                  <div className="repo-progress-line">
+                    <span className="repo-label">Ingested:</span>
+                    <span className="repo-value">{repo.issues_ingested ?? 0}</span>
+                  </div>
+
+                  <div className="repo-progress-line">
+                    <span className="repo-label">Classified:</span>
+                    <span className="repo-value">{repo.issues_classified ?? 0}</span>
+                  </div>
+                </div>
+
+
+              </button>
 
               <button
                 className="delete-repo-btn"
@@ -314,7 +350,7 @@ const Dashboard = () => {
                     className={!difficultyFilter ? "active" : ""}
                     onClick={() => {
                       setDifficultyFilter(null);
-                      fetchIssues(selectedRepo.id);
+                      fetchIssues(selectedRepo.id, null);
                     }}
                   >
                     All
@@ -367,20 +403,28 @@ const Dashboard = () => {
 
           {!selectedIssue && <p>Select an issue to get AI solution</p>}
 
-          {selectedIssue && solutionSteps.length === 0 && (
-            <p>Thinking…</p>
-          )}
+          {selectedIssue && solutionSteps.length === 0 && <p>Thinking…</p>}
 
           {solutionSteps.map((step) => (
             <div key={step.step} className="solution-step">
-              <h4>Step {step.step}: {step.title}</h4>
+              <h4>
+                Step {step.step}: {step.title}
+              </h4>
 
-              <p><strong>Explanation:</strong> {step.explanation}</p>
-              <p><strong>File:</strong> {step.file}</p>
-              <p><strong>Action:</strong></p>
+              <p>
+                <strong>Explanation:</strong> {step.explanation}
+              </p>
+              <p>
+                <strong>File:</strong> {step.file}
+              </p>
+              <p>
+                <strong>Action:</strong>
+              </p>
               <pre className="code-block">{step.action}</pre>
 
-              <p><strong>Verify:</strong> {step.verification}</p>
+              <p>
+                <strong>Verify:</strong> {step.verification}
+              </p>
 
               <button
                 className="feedback-btn"

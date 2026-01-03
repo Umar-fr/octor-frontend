@@ -660,12 +660,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.repo-btn span:first-child {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repo-progress {
+  min-width: 80px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .repo-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
 
 .repo-status {
   font-size: 0.7rem;
@@ -722,4 +738,30 @@
   overflow-x: auto;
   white-space: pre;
   margin-top: 6px;
+}
+
+.badge.pending {
+  background: rgba(107, 114, 128, 0.25);
+  color: #d1d5db;
+  border: 1px solid rgba(107, 114, 128, 0.4);
+}
+
+.progress-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+  transition: width 0.3s ease;
+}
+
+.classifying {
+  font-size: 0.75rem;
+  color: #facc15;
+  margin-left: 6px;
 }
