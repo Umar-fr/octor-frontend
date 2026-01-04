@@ -765,3 +765,34 @@
   color: #facc15;
   margin-left: 6px;
 }
+
+.repo-dropdown {
+  margin-top: 12px;
+  position: relative;
+}
+
+.dropdown-btn {
+  width: 100%;
+  padding: 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  cursor: pointer;
+}
+
+.dropdown-list {
+  max-height: 220px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.85);
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.1);
+}

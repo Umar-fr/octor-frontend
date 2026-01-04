@@ -52,6 +52,24 @@ const Dashboard = () => {
   // 🔹 WebSocket ref
   const wsRef = useRef<WebSocket | null>(null);
 
+  // 🔒 Fetch GitHub Repos
+  const [githubRepos, setGithubRepos] = useState<any[]>([]);
+  const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
+
+  const fetchGitHubRepos = async () => {
+    try {
+      const res = await authFetch("http://localhost:8000/github/repos");
+      const data = await res.json();
+      setGithubRepos(data);
+    } catch {
+      console.error("Failed to load GitHub repos");
+    }
+  };
+
+  useEffect(() => {
+    fetchGitHubRepos();
+  }, []);
+
   // 🔒 Redirect if not authenticated
   useEffect(() => {
     if (!user) navigate("/");
@@ -288,6 +306,34 @@ const Dashboard = () => {
           <button className="solve-btn" onClick={analyzeRepo} disabled={loading}>
             {loading ? "Analyzing..." : "Analyze Repository"}
           </button>
+
+          <div className="repo-dropdown">
+            <button
+              className="dropdown-btn"
+              onClick={() => setRepoDropdownOpen(!repoDropdownOpen)}
+            >
+              ▼ Select from your GitHub repositories
+            </button>
+
+            {repoDropdownOpen && (
+              <div className="dropdown-list">
+                {githubRepos.map((r) => (
+                  <div
+                    key={r.full_name}
+                    className="dropdown-item"
+                    onClick={() => {
+                      setRepoUrl(r.url);
+                      setRepoDropdownOpen(false);
+                    }}
+                  >
+                    <strong>{r.name}</strong>
+                    <small>{r.private ? "Private" : "Public"}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
 
           <h3 style={{ marginTop: 20 }}>Your Repositories</h3>
 
