@@ -14,11 +14,13 @@ export const authFetch = async (
     throw new Error("No auth token found");
   }
 
-  const headers: HeadersInit = {
-    ...(options.headers || {}),
+  // ✅ FORCE plain object
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> | undefined),
     Authorization: `Bearer ${token}`,
   };
 
+  // ✅ Safe now
   if (options.body) {
     headers["Content-Type"] = "application/json";
   }
