@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { verifyToken } from "../auth";
 import { authFetch } from "../api";
 import "../components/dashboard.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 
 type Repo = {
   issues_classified: number;
@@ -19,6 +22,7 @@ type Issue = {
   title: string;
   body: string;
   difficulty: "Beginner" | "Moderate" | "Professional" | "Pending";
+  image_url?: string;
 };
 
 type SolutionStep = {
@@ -29,6 +33,59 @@ type SolutionStep = {
   action: string;
   verification: string;
 };
+const extractImageUrls = (text: string): string[] => {
+  if (!text) return [];
+
+  const urls = new Set<string>();
+
+  // Markdown images: ![alt](url)
+  const markdownRegex = /!\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi;
+  let match;
+  while ((match = markdownRegex.exec(text)) !== null) {
+    urls.add(match[1]);
+  }
+
+  // HTML images: <img src="url" />
+  const htmlRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+  while ((match = htmlRegex.exec(text)) !== null) {
+    urls.add(match[1]);
+  }
+
+  // Raw image URLs (fallback)
+  const rawRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp))/gi;
+  while ((match = rawRegex.exec(text)) !== null) {
+    urls.add(match[1]);
+  }
+
+  return Array.from(urls);
+};
+const cleanIssueText = (text: string): string => {
+  if (!text) return "";
+
+  return text
+    // Remove markdown images ![alt](url)
+    .replace(/!\[[^\]]*\]\([^)]+\)/gi, "")
+    // Remove HTML img tags
+    .replace(/<img[^>]*>/gi, "")
+    // Normalize spacing
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
+const stripImagesFromMarkdown = (text: string): string => {
+  if (!text) return "";
+
+  return text
+    // Markdown images
+    .replace(/!\[[^\]]*\]\([^)]+\)/gi, "")
+    // HTML images
+    .replace(/<img[^>]*>/gi, "")
+    .trim();
+};
+
+
+
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -55,6 +112,8 @@ const Dashboard = () => {
   // 🔒 Fetch GitHub Repos
   const [githubRepos, setGithubRepos] = useState<any[]>([]);
   const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
 
   const fetchGitHubRepos = async () => {
     try {
@@ -291,7 +350,12 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="dashboard-content">
+      <div
+  className={`dashboard-content ${
+    selectedIssue ? "issue-selected" : ""
+  }`}
+>
+
         {/* LEFT PANEL */}
         <div className="glass-card repo-panel">
           <h3>Repository Analyzer</h3>
@@ -437,7 +501,57 @@ const Dashboard = () => {
                 </button>
 
                 <h3>{selectedIssue.title}</h3>
-                <p>{selectedIssue.body}</p>
+
+<div className="issue-markdown">
+  <ReactMarkdown
+  remarkPlugins={[remarkGfm]}
+  components={{
+    code({ className, children }) {
+      const isBlock = className?.includes("language-");
+
+      if (isBlock) {
+        return (
+          <pre className="code-block">
+            <code>{children}</code>
+          </pre>
+        );
+      }
+
+      return (
+        <code className="inline-code">
+          {children}
+        </code>
+      );
+    },
+  }}
+>
+  {stripImagesFromMarkdown(selectedIssue.body)}
+</ReactMarkdown>
+
+</div>
+
+
+
+
+{extractImageUrls(selectedIssue.body).length > 0 && (
+  <div className="issue-images">
+    {extractImageUrls(selectedIssue.body).map((url, index) => (
+      <img
+  key={index}
+  src={url}
+  alt="Issue attachment"
+  className="issue-image clickable"
+  loading="lazy"
+  onClick={() => setPreviewImage(url)}
+  onError={(e) => {
+    e.currentTarget.style.display = "none";
+  }}
+/>
+
+    ))}
+  </div>
+)}
+
               </>
             )}
           </div>
@@ -482,6 +596,19 @@ const Dashboard = () => {
           ))}
         </div>
       </div>
+      {previewImage && (
+  <div
+    className="image-preview-overlay"
+    onClick={() => setPreviewImage(null)}
+  >
+    <img
+      src={previewImage}
+      className="image-preview"
+      onClick={(e) => e.stopPropagation()}
+    />
+  </div>
+)}
+
     </div>
   );
 };

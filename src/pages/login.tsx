@@ -13,12 +13,7 @@ const Login = () => {
     }
   }, [navigate]);
 
-  return (
-    <div>
-      <h1>Welcome to Octopus</h1>
-      <Landing />
-    </div>
-  );
+  return <Landing />;
 };
 
 export default Login;
