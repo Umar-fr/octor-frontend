@@ -9,8 +9,6 @@ import octorLogoHorizontal from "../assets/Octor logo horizontal.svg";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
-
-
 type Repo = {
   issues_classified: number;
   id: number;
@@ -37,6 +35,7 @@ type SolutionStep = {
   action: string;
   verification: string;
 };
+
 const extractImageUrls = (text: string): string[] => {
   if (!text) return [];
 
@@ -75,7 +74,6 @@ const stripImagesFromMarkdown = (text: string): string => {
     .trim();
 };
 
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const user = verifyToken();
@@ -83,8 +81,7 @@ const Dashboard = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const [repositories, setRepositories] = useState<Repo[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
-  const [showGuide, setShowGuide] = useState(false);
-
+  const [showHelp, setShowHelp] = useState(false);
 
   const [issues, setIssues] = useState<Issue[]>([]);
   const [difficultyFilter, setDifficultyFilter] = useState<string | null>(null);
@@ -104,7 +101,7 @@ const Dashboard = () => {
   const [githubRepos, setGithubRepos] = useState<any[]>([]);
   const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-
+  const [totalIssuesCount, setTotalIssuesCount] = useState<number | null>(null);
 
   const fetchGitHubRepos = async () => {
     try {
@@ -158,7 +155,17 @@ const Dashboard = () => {
 
       const res = await authFetch(url);
       const data = await res.json();
-      setIssues(Array.isArray(data) ? data : []);
+
+      if (Array.isArray(data)) {
+        setIssues(data);
+
+        // Only update total count when fetching ALL issues
+        if (!filter) {
+          setTotalIssuesCount(data.length);
+        }
+      } else {
+        setIssues([]);
+      }
     } catch {
       setIssues([]);
     }
@@ -169,10 +176,9 @@ const Dashboard = () => {
     setLoading(true);
 
     try {
-      await authFetch(
-        `/analyze?repo_url=${encodeURIComponent(repoUrl)}`,
-        { method: "POST" }
-      );
+      await authFetch(`/analyze?repo_url=${encodeURIComponent(repoUrl)}`, {
+        method: "POST",
+      });
       setRepoUrl("");
       fetchRepositories();
     } finally {
@@ -184,10 +190,7 @@ const Dashboard = () => {
     if (!window.confirm("Delete repository permanently?")) return;
 
     try {
-      await authFetch(
-        `/repositories/${repoId}`,
-        { method: "DELETE" }
-      );
+      await authFetch(`/repositories/${repoId}`, { method: "DELETE" });
 
       if (selectedRepo?.id === repoId) {
         setSelectedRepo(null);
@@ -225,12 +228,13 @@ const Dashboard = () => {
     };
   };
 
-
   const handleRepoClick = (repo: Repo) => {
     setSelectedRepo(repo);
     setSelectedIssue(null);
     setSolutionSteps([]);
-    fetchIssues(repo.id, difficultyFilter);
+    setDifficultyFilter(null);
+    setTotalIssuesCount(null);
+    fetchIssues(repo.id, null);
     connectWS(repo.id);
   };
 
@@ -239,9 +243,7 @@ const Dashboard = () => {
     setSolutionSteps([]);
 
     try {
-      const res = await authFetch(
-        `/solutions/${issue.id}`
-      );
+      const res = await authFetch(`/solutions/${issue.id}`);
       const data = await res.json();
       setSolutionSteps(Array.isArray(data.steps) ? data.steps : []);
     } catch {
@@ -264,9 +266,7 @@ const Dashboard = () => {
         }),
       });
 
-      const res = await authFetch(
-        `/solutions/${selectedIssue.id}`
-      );
+      const res = await authFetch(`/solutions/${selectedIssue.id}`);
       const data = await res.json();
       setSolutionSteps(Array.isArray(data.steps) ? data.steps : []);
     } catch {
@@ -299,20 +299,12 @@ const Dashboard = () => {
           }}
           style={{ cursor: "pointer" }}
         >
-          <img
-            src={octorLogoHorizontal}
-            alt="Octor"
-            className="logo-image"
-          />
+          <img src={octorLogoHorizontal} alt="Octor" className="logo-image" />
         </div>
 
-        <button
-          className="help-btn"
-          onClick={() => setShowGuide(true)}
-        >
+        <button className="help-btn" onClick={() => setShowHelp(true)}>
           Help & Guide
         </button>
-
 
         <div className="avatar-wrapper" ref={menuRef}>
           <img
@@ -343,7 +335,11 @@ const Dashboard = () => {
                     return;
                   }
 
-                  window.open(`https://github.com/${githubUsername}`, "_blank", "noopener,noreferrer");
+                  window.open(
+                    `https://github.com/${githubUsername}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
                   setMenuOpen(false);
                 }}
               >
@@ -358,66 +354,11 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-        {showGuide && (
-          <>
-            <div
-              className="guide-overlay"
-              onClick={() => setShowGuide(false)}
-            />
-
-            <div className="guide-popover">
-              <h3>Welcome to Octor 👋</h3>
-
-              <p>
-                Octor helps you analyze GitHub repositories, understand issues,
-                and get AI-powered solution guidance.
-              </p>
-
-              <div className="guide-steps">
-                <div>
-                  <strong>1. Connect a repository</strong>
-                  <span>
-                    Paste a GitHub repo URL or select one from your account.
-                  </span>
-                </div>
-
-                <div>
-                  <strong>2. Analyze issues</strong>
-                  <span>
-                    Octor classifies issues by difficulty and context.
-                  </span>
-                </div>
-
-                <div>
-                  <strong>3. Get AI solutions</strong>
-                  <span>
-                    Click any issue to receive step-by-step fix guidance.
-                  </span>
-                </div>
-              </div>
-
-              <p className="guide-hint">
-                💡 Tip: Repositories with issues disabled won’t show results.
-              </p>
-
-              <button
-                className="guide-close-btn"
-                onClick={() => setShowGuide(false)}
-              >
-                Got it
-              </button>
-            </div>
-          </>
-        )}
-
       </div>
 
       <div
-  className={`dashboard-content ${
-    selectedIssue ? "issue-selected" : ""
-  }`}
->
-
+        className={`dashboard-content ${selectedIssue ? "issue-selected" : ""}`}
+      >
         {/* LEFT PANEL */}
         <div className="glass-card repo-panel">
           <h3>Repository Analyzer</h3>
@@ -460,15 +401,11 @@ const Dashboard = () => {
             )}
           </div>
 
-
           <h3 style={{ marginTop: 20 }}>Your Repositories</h3>
 
           {repositories.map((repo) => (
             <div key={repo.id} className="repo-item">
-              <button
-                className="repo-btn"
-                onClick={() => handleRepoClick(repo)}
-              >
+              <button className="repo-btn" onClick={() => handleRepoClick(repo)}>
                 <div className="repo-name">{repo.name}</div>
 
                 <div className="repo-meta">
@@ -479,11 +416,11 @@ const Dashboard = () => {
 
                   <div className="repo-progress-line">
                     <span className="repo-label">Classified:</span>
-                    <span className="repo-value">{repo.issues_classified ?? 0}</span>
+                    <span className="repo-value">
+                      {repo.issues_classified ?? 0}
+                    </span>
                   </div>
                 </div>
-
-
               </button>
 
               <button
@@ -504,8 +441,8 @@ const Dashboard = () => {
                 <h3>Welcome to Octor 👋</h3>
 
                 <p>
-                  Octor analyzes GitHub repositories and provides AI-powered
-                  issue insights and solutions.
+                  Octor analyzes GitHub repositories and provides AI-powered issue
+                  insights and solutions.
                 </p>
 
                 <div className="onboarding-steps">
@@ -516,7 +453,9 @@ const Dashboard = () => {
 
                   <div className="onboarding-step">
                     <span>2</span>
-                    <p>Click <strong>Analyze Repository</strong></p>
+                    <p>
+                      Click <strong>Analyze Repository</strong>
+                    </p>
                   </div>
 
                   <div className="onboarding-step">
@@ -530,8 +469,6 @@ const Dashboard = () => {
                 </p>
               </div>
             )}
-
-
 
             {selectedRepo && !selectedIssue && (
               <>
@@ -564,13 +501,30 @@ const Dashboard = () => {
                 <div className="issues-list">
                   {issues.length === 0 ? (
                     <div className="empty-state">
-                      <h4>No issues found</h4>
-                      <p>
-                        This repository has no open issues or issue tracking is disabled.
-                      </p>
-                      <p className="empty-hint">
-                        Try another repository or enable issues in GitHub settings.
-                      </p>
+                      {totalIssuesCount === 0 ? (
+                        <>
+                          <h4>No issues found</h4>
+                          <p>
+                            This repository has no open issues or issue tracking is
+                            disabled.
+                          </p>
+                          <p className="empty-hint">
+                            Try another repository or enable issues in GitHub
+                            settings.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <h4>No {difficultyFilter} issues</h4>
+                          <p>
+                            This repository has no issues under this difficulty
+                            level.
+                          </p>
+                          <p className="empty-hint">
+                            Try another filter to view available issues.
+                          </p>
+                        </>
+                      )}
                     </div>
                   ) : (
                     issues.map((issue) => (
@@ -608,56 +562,46 @@ const Dashboard = () => {
 
                 <h3>{selectedIssue.title}</h3>
 
-<div className="issue-markdown">
-  <ReactMarkdown
-  remarkPlugins={[remarkGfm]}
-  components={{
-    code({ className, children }) {
-      const isBlock = className?.includes("language-");
+                <div className="issue-markdown">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ className, children }) {
+                        const isBlock = className?.includes("language-");
 
-      if (isBlock) {
-        return (
-          <pre className="code-block">
-            <code>{children}</code>
-          </pre>
-        );
-      }
+                        if (isBlock) {
+                          return (
+                            <pre className="code-block">
+                              <code>{children}</code>
+                            </pre>
+                          );
+                        }
 
-      return (
-        <code className="inline-code">
-          {children}
-        </code>
-      );
-    },
-  }}
->
-  {stripImagesFromMarkdown(selectedIssue.body)}
-</ReactMarkdown>
+                        return <code className="inline-code">{children}</code>;
+                      },
+                    }}
+                  >
+                    {stripImagesFromMarkdown(selectedIssue.body)}
+                  </ReactMarkdown>
+                </div>
 
-</div>
-
-
-
-
-{extractImageUrls(selectedIssue.body).length > 0 && (
-  <div className="issue-images">
-    {extractImageUrls(selectedIssue.body).map((url, index) => (
-      <img
-  key={index}
-  src={url}
-  alt="Issue attachment"
-  className="issue-image clickable"
-  loading="lazy"
-  onClick={() => setPreviewImage(url)}
-  onError={(e) => {
-    e.currentTarget.style.display = "none";
-  }}
-/>
-
-    ))}
-  </div>
-)}
-
+                {extractImageUrls(selectedIssue.body).length > 0 && (
+                  <div className="issue-images">
+                    {extractImageUrls(selectedIssue.body).map((url, index) => (
+                      <img
+                        key={index}
+                        src={url}
+                        alt="Issue attachment"
+                        className="issue-image clickable"
+                        loading="lazy"
+                        onClick={() => setPreviewImage(url)}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -696,25 +640,52 @@ const Dashboard = () => {
                 className="feedback-btn"
                 onClick={() => submitFeedback(step.step)}
               >
-                ❌ This step failed
+                ❌ This step failed? Click here to regenerate.
               </button>
             </div>
           ))}
         </div>
       </div>
-      {previewImage && (
-  <div
-    className="image-preview-overlay"
-    onClick={() => setPreviewImage(null)}
-  >
-    <img
-      src={previewImage}
-      className="image-preview"
-      onClick={(e) => e.stopPropagation()}
-    />
-  </div>
-)}
 
+      {previewImage && (
+        <div
+          className="image-preview-overlay"
+          onClick={() => setPreviewImage(null)}
+        >
+          <img
+            src={previewImage}
+            className="image-preview"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {showHelp && (
+        <>
+          <div className="help-overlay" onClick={() => setShowHelp(false)} />
+
+          <div className="help-modal">
+            <h3>Getting Started with Octor</h3>
+
+            <ol>
+              <li>Paste a GitHub repository URL or select one</li>
+              <li>
+                Click <strong>Analyze Repository</strong>
+              </li>
+              <li>Browse issues by difficulty</li>
+              <li>Select an issue to get AI-powered fixes</li>
+            </ol>
+
+            <div className="help-tip">
+              💡 Repositories with issues disabled won't show results.
+            </div>
+
+            <button className="help-close-btn" onClick={() => setShowHelp(false)}>
+              Got it
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
