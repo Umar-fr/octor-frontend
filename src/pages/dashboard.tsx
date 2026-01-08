@@ -502,22 +502,34 @@ const Dashboard = () => {
                 </div>
 
                 <div className="issues-list">
-                  {issues.map((issue) => (
-                    <div
-                      key={issue.id}
-                      className="issue-card"
-                      onClick={() => handleIssueClick(issue)}
-                    >
-                      <h4>
-                        #{issue.issue_number} — {issue.title}
-                      </h4>
-                      <span
-                        className={`badge ${issue.difficulty.toLowerCase()}`}
-                      >
-                        {issue.difficulty}
-                      </span>
+                  {issues.length === 0 ? (
+                    <div className="empty-state">
+                      <h4>No issues found</h4>
+                      <p>
+                        This repository has no open issues or issue tracking is disabled.
+                      </p>
+                      <p className="empty-hint">
+                        Try another repository or enable issues in GitHub settings.
+                      </p>
                     </div>
-                  ))}
+                  ) : (
+                    issues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        className="issue-card"
+                        onClick={() => handleIssueClick(issue)}
+                      >
+                        <h4>
+                          #{issue.issue_number} — {issue.title}
+                        </h4>
+                        <span
+                          className={`badge ${issue.difficulty.toLowerCase()}`}
+                        >
+                          {issue.difficulty}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </>
             )}
