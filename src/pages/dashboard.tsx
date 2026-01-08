@@ -289,13 +289,21 @@ const Dashboard = () => {
     <div className="dashboard-container">
       {/* TOP BAR */}
       <div className="top-bar">
-        <div className="logo-container">
+        <div
+          className="logo-container"
+          onClick={() => {
+            // Reset dashboard state by reloading
+            window.location.reload();
+          }}
+          style={{ cursor: "pointer" }}
+        >
           <img
             src={octorLogoHorizontal}
             alt="Octor"
             className="logo-image"
           />
         </div>
+
 
 
         <div className="avatar-wrapper" ref={menuRef}>
@@ -317,15 +325,22 @@ const Dashboard = () => {
 
               <button
                 onClick={() => {
-                  const username = (user as any)?.login;
-                  if (username) {
-                    window.open(`https://github.com/${username}`, "_blank");
+                  const githubUsername =
+                    (user as any)?.login ||
+                    (user as any)?.username ||
+                    (user as any)?.github_username;
+
+                  if (!githubUsername) {
+                    alert("GitHub username not available");
+                    return;
                   }
+
+                  window.open(`https://github.com/${githubUsername}`, "_blank", "noopener,noreferrer");
+                  setMenuOpen(false);
                 }}
               >
                 Profile
               </button>
-
 
               <button onClick={switchAccount}>Switch Account</button>
 
@@ -424,11 +439,38 @@ const Dashboard = () => {
         {/* MIDDLE PANEL */}
         <div className="glass-card middle-panel">
           <div className="middle-panel-content">
-            {!selectedRepo && (
-              <p style={{ opacity: 0.7 }}>
-                Select a repository to view issues and insights
-              </p>
+            {repositories.length === 0 && (
+              <div className="onboarding-card">
+                <h3>Welcome to Octor 👋</h3>
+
+                <p>
+                  Octor analyzes GitHub repositories and provides AI-powered
+                  issue insights and solutions.
+                </p>
+
+                <div className="onboarding-steps">
+                  <div className="onboarding-step">
+                    <span>1</span>
+                    <p>Paste a GitHub repository URL on the left</p>
+                  </div>
+
+                  <div className="onboarding-step">
+                    <span>2</span>
+                    <p>Click <strong>Analyze Repository</strong></p>
+                  </div>
+
+                  <div className="onboarding-step">
+                    <span>3</span>
+                    <p>Select an issue to get an AI-generated solution</p>
+                  </div>
+                </div>
+
+                <p className="onboarding-hint">
+                  You can analyze both public and private repositories.
+                </p>
+              </div>
             )}
+
 
 
             {selectedRepo && !selectedIssue && (
